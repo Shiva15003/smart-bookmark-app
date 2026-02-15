@@ -23,6 +23,9 @@ export default function BookmarkList({
 
   useEffect(() => {
     if (!userId) return;
+    supabase.auth.getSession().then((res) => {
+  console.log("SESSION:", res.data.session);
+});
 
     const channel = supabase
       .channel(`live-feed-${userId}`)
