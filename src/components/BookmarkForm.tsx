@@ -1,28 +1,50 @@
 'use client';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
-
+import type { FormEvent } from 'react';
 export default function BookmarkForm() {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  e.preventDefault();
+  setLoading(true);
 
-    const { error } = await supabase.from('bookmarks').insert([{ title, url }]);
+  // Get logged in user
+  const { data: { user } } = await supabase.auth.getUser();
 
-    if (error) {
-      console.error(error.message);
-      alert('Failed to add bookmark.');
-    } else {
-      setTitle('');
-      setUrl('');
-    }
+  if (!user) {
+    alert("User not found");
     setLoading(false);
-  };
+    return;
+  }
+
+  const { error } = await supabase
+    .from('bookmarks')
+    .insert([
+      {
+        title,
+        url,
+        user_id: user.id 
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    console.error(error.message);
+    alert('Failed to add bookmark.');
+  } else {
+    setTitle('');
+    setUrl('');
+  }
+
+  setLoading(false);
+};
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

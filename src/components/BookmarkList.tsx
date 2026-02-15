@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 
 export default function BookmarkList({ initialBookmarks, userId }: { initialBookmarks: any[], userId: string }) {
   const [bookmarks, setBookmarks] = useState(initialBookmarks);
   const [mounted, setMounted] = useState(false);
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   // Helper to fetch favicon via Google S2 service
   const getFaviconUrl = (url: string) => {
@@ -17,26 +17,46 @@ export default function BookmarkList({ initialBookmarks, userId }: { initialBook
     }
   };
 
-  useEffect(() => {
+    useEffect(() => {
+    if (!userId) return;
+
     setMounted(true);
 
-    // Requirement #4: Real-time synchronization
     const channel = supabase
       .channel(`live-feed-${userId}`)
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'bookmarks', 
-        filter: `user_id=eq.${userId}` 
-      }, 
-      (payload) => {
-        if (payload.eventType === 'INSERT') setBookmarks((prev) => [payload.new, ...prev]);
-        if (payload.eventType === 'DELETE') setBookmarks((prev) => prev.filter((b) => b.id !== payload.old.id));
-      })
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookmarks',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setBookmarks((prev) => {
+              const exists = prev.find((b) => b.id === payload.new.id);
+              if (exists) return prev;
+              return [payload.new, ...prev];
+            });
+          }
 
-    return () => { supabase.removeChannel(channel); };
-  }, [supabase, userId]);
+          if (payload.eventType === 'DELETE') {
+            setBookmarks((prev) =>
+              prev.filter((b) => b.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Subscription status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
 
   const handleDelete = async (id: string) => {
     // Requirement #5: Delete own bookmarks
