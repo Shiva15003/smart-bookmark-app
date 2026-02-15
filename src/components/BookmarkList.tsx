@@ -10,7 +10,6 @@ export default function BookmarkList({
   userId: string;
 }) {
   const [bookmarks, setBookmarks] = useState(initialBookmarks);
-  const [mounted, setMounted] = useState(false);
   const supabase = useMemo(() => createClient(), []);
 
   const getFaviconUrl = (url: string) => {
@@ -25,8 +24,6 @@ export default function BookmarkList({
   useEffect(() => {
     if (!userId) return;
 
-    setMounted(true);
-
     const channel = supabase
       .channel(`live-feed-${userId}`)
       .on(
@@ -35,7 +32,6 @@ export default function BookmarkList({
           event: '*',
           schema: 'public',
           table: 'bookmarks',
-          // 🚨 FILTER REMOVED FOR DEBUGGING
         },
         (payload) => {
           console.log('REALTIME EVENT:', payload);
@@ -68,8 +64,6 @@ export default function BookmarkList({
     await supabase.from('bookmarks').delete().eq('id', id);
   };
 
-  if (!mounted) return null;
-
   if (bookmarks.length === 0) {
     return (
       <div className="text-center py-20 bg-white/50 backdrop-blur-sm rounded-[2.5rem] border-2 border-dashed border-slate-200">
@@ -96,10 +90,6 @@ export default function BookmarkList({
                     src={getFaviconUrl(b.url) || ''}
                     alt=""
                     className="h-8 w-8 object-contain"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        'https://www.google.com/s2/favicons?domain=example.com';
-                    }}
                   />
                 </div>
 
@@ -130,21 +120,7 @@ export default function BookmarkList({
                 onClick={() => handleDelete(b.id)}
                 className="self-end sm:self-center p-4 text-slate-300 hover:text-white hover:bg-gradient-to-br hover:from-red-500 hover:to-orange-500 rounded-2xl transition-all duration-300 shadow-sm border border-slate-50"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
-                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
-                </svg>
+                Delete
               </button>
             </div>
           </li>
